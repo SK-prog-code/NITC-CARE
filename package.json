@@ -1,0 +1,31 @@
+{
+  "name": "college-complaint-management-system",
+  "version": "1.0.0",
+  "description": "College Complaint Management System (CCMS) - Full-stack MERN Application",
+  "main": "server/src/server.js",
+  "scripts": {
+    "dev": "concurrently \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "start": "npm --prefix server start",
+    "seed": "npm --prefix server run seed",
+    "install:server": "npm --prefix server install",
+    "install:client": "npm --prefix client install",
+    "install:all": "npm install && npm --prefix server install && npm --prefix client install",
+    "build": "npm --prefix client run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "complaint-management",
+    "mern",
+    "react",
+    "express",
+    "mongodb",
+    "college-system"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "mongodb": "^7.6.0"
+  }
+}
