@@ -78,6 +78,29 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const googleLogin = async (payload) => {
+    setLoading(true);
+    try {
+      const res = await authService.googleLogin(payload);
+      if (res.success && res.data) {
+        const { user: googleUser, token: jwtToken } = res.data;
+        setUser(googleUser);
+        setToken(jwtToken);
+        localStorage.setItem('token', jwtToken);
+        localStorage.setItem('user', JSON.stringify(googleUser));
+        return { success: true, user: googleUser };
+      }
+      return { success: false, message: res.message || 'Google sign-in failed' };
+    } catch (err) {
+      return {
+        success: false,
+        message: err.message || 'Google sign-in failed. Please try again.',
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -110,6 +133,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         register,
+        googleLogin,
         logout,
         quickLogin,
         isAuthenticated,

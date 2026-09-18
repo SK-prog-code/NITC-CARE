@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -18,12 +18,53 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const googleButtonRef = useRef(null);
 
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const from = location.state?.from?.pathname;
+
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId || !window.google?.accounts?.id || !googleButtonRef.current) {
+      return;
+    }
+
+    const handleCredentialResponse = async (response) => {
+      setSubmitting(true);
+      setError('');
+
+      const result = await googleLogin({ token: response.credential });
+      setSubmitting(false);
+
+      if (result.success) {
+        if (from) {
+          navigate(from, { replace: true });
+        } else if (result.user.role === 'admin' || result.user.role === 'staff') {
+          navigate('/admin/dashboard', { replace: true });
+        } else {
+          navigate('/student/dashboard', { replace: true });
+        }
+      } else {
+        setError(result.message || 'Google sign-in failed.');
+      }
+    };
+
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: handleCredentialResponse,
+    });
+
+    window.google.accounts.id.renderButton(googleButtonRef.current, {
+      theme: 'outline',
+      size: 'large',
+      text: 'continue_with',
+      shape: 'pill',
+      logo_alignment: 'left',
+    });
+  }, [from, googleLogin, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -112,7 +153,23 @@ const Login = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-4">
+            {!import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                Google sign-in is not configured yet. Add VITE_GOOGLE_CLIENT_ID in Vercel.
+              </div>
+            ) : (
+              <div ref={googleButtonRef} className="flex justify-center" />
+            )}
+
+            <div className="relative flex items-center">
+              <div className="flex-1 border-t border-slate-200 dark:border-slate-700" />
+              <span className="px-3 text-[10px] uppercase tracking-[0.2em] text-slate-400">or</span>
+              <div className="flex-1 border-t border-slate-200 dark:border-slate-700" />
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5 mt-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
                 College Email Address

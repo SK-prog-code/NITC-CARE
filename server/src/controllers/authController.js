@@ -1,5 +1,8 @@
 const bcrypt = require('bcryptjs');
+const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Helper to send response with JWT token
 const sendTokenResponse = (user, statusCode, res, message = 'Success') => {
@@ -128,6 +131,77 @@ exports.login = async (req, res, next) => {
         message: 'Invalid email or password',
         error: 'InvalidCredentials',
       });
+    }
+
+    sendTokenResponse(user, 200, res, `Welcome back, ${user.name}`);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Handle Google sign-in / sign-up
+// @route   POST /api/v1/auth/google
+// @access  Public
+exports.googleAuth = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Google token is required',
+        error: 'MissingGoogleToken',
+      });
+    }
+
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      return res.status(500).json({
+        success: false,
+        data: null,
+        message: 'Google OAuth is not configured on the server',
+        error: 'GoogleNotConfigured',
+      });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const normalizedEmail = payload.email?.toLowerCase();
+
+    if (!normalizedEmail) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Google account email is missing',
+        error: 'InvalidGooglePayload',
+      });
+    }
+
+    let user = await User.findOne({ email: normalizedEmail }).populate('departmentId', 'name');
+
+    if (!user) {
+      const googlePassword = await bcrypt.hash(`google-${Date.now()}-${payload.sub}`, 10);
+      user = await User.create({
+        name: payload.name || 'Google User',
+        email: normalizedEmail,
+        passwordHash: googlePassword,
+        authProvider: 'google',
+        googleId: payload.sub,
+        role: 'student',
+        phone: null,
+        rollNumber: null,
+        hostelBlock: null,
+        roomNumber: null,
+        messName: null,
+      });
+    } else {
+      user.authProvider = user.authProvider || 'google';
+      user.googleId = user.googleId || payload.sub;
+      await user.save();
     }
 
     sendTokenResponse(user, 200, res, `Welcome back, ${user.name}`);
